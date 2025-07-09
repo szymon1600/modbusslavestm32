@@ -1,0 +1,8 @@
+Debug/
+Release/
+Core/Src/main.c
+Core/Src/freertos.c
+mx.scratch
+.mxproject
+!LinkerFiles/Release/
+!LinkerFiles/Debug/
