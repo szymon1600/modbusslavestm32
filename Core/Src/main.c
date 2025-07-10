@@ -461,7 +461,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     ProcessInput(rx2);
     HAL_UART_Receive_IT(&huart1, &rx2, 1);
   }
-  else if (huart->Instance == USART2)
+  else if (huart->Instance == USART1)
   {
     // Zachowaj oryginalną funkcjonalność dla USART2
     uint8_t tx;
