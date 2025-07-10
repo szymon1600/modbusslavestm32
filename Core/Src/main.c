@@ -8,6 +8,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include <string.h>
+#include <stdlib.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -37,6 +39,13 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 uint8_t rx1, rx2;
+uint32_t pwm_value = 0;
+uint8_t breathing_direction = 1; // 1 = zwiększanie, 0 = zmniejszanie
+uint32_t breathing_counter = 0;
+uint8_t breathing_mode = 1; // 1 = oddychanie, 0 = stała jasność
+uint8_t input_buffer[10];
+uint8_t input_index = 0;
+uint8_t brightness_percent = 50; // domyślna jasność 50%
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -46,7 +55,8 @@ static void MX_USART2_UART_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
-
+void SetBrightness(uint8_t percent);
+void ProcessInput(uint8_t data);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -89,13 +99,55 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart1, &rx1, 1);
   HAL_UART_Receive_IT(&huart2, &rx2, 1);
+
+  // Uruchomienie PWM na kanale 1 (dioda)
+  HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+
+  // Wyślij instrukcje na start
+  char* welcome_msg = "Wpisz liczbe 0-100 i nacisnij Enter aby ustawic jasnosc LED\r\nWpisz 'b' aby wlaczyc tryb oddychania\r\n";
+  //HAL_UART_Transmit(&huart1, (uint8_t*)welcome_msg, strlen(welcome_msg), HAL_MAX_DELAY);
+  HAL_UART_Transmit(&huart2, (uint8_t*)welcome_msg, strlen(welcome_msg), HAL_MAX_DELAY);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    // nic nie robimy w pętli głównej – wszystko dzieje się w przerwaniach
+    if (breathing_mode)
+    {
+      // Efekt oddychania diody
+      breathing_counter++;
+      if (breathing_counter >= 3000) // Opóźnienie dla płynnego efektu
+      {
+        breathing_counter = 0;
+
+        if (breathing_direction == 1) // Zwiększanie jasności
+        {
+          pwm_value += 200; // Krok zwiększania
+          if (pwm_value >= 50000) // Maksymalna wartość PWM
+          {
+            pwm_value = 50000;
+            breathing_direction = 0; // Zmieniamy kierunek na zmniejszanie
+          }
+        }
+        else // Zmniejszanie jasności
+        {
+          if (pwm_value >= 200)
+          {
+            pwm_value -= 200; // Krok zmniejszania
+          }
+          else
+          {
+            pwm_value = 0;
+            breathing_direction = 1; // Zmieniamy kierunek na zwiększanie
+          }
+        }
+
+        // Ustawienie nowej wartości PWM
+        __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pwm_value);
+      }
+    }
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -331,30 +383,91 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void SetBrightness(uint8_t percent)
+{
+  if (percent > 100) percent = 100;
+
+  // Przelicz procent na wartość PWM (0-50000)
+  uint32_t pwm_val = (uint32_t)((percent * 50000) / 100);
+
+  // Ustaw PWM
+  __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, pwm_val);
+
+  // Wyślij potwierdzenie
+  char response[50];
+  sprintf(response, "Jasnosc ustawiona na: %d%%\r\n", percent);
+  HAL_UART_Transmit(&huart1, (uint8_t*)response, strlen(response), HAL_MAX_DELAY);
+}
+
+void ProcessInput(uint8_t data)
+{
+  // Echo znaku
+  HAL_UART_Transmit(&huart1, &data, 1, HAL_MAX_DELAY);
+
+  if (data == '\r' || data == '\n') // Enter
+  {
+    if (input_index > 0)
+    {
+      input_buffer[input_index] = '\0'; // Zakończ string
+
+      // Sprawdź czy to komenda 'b' dla trybu oddychania
+      if (input_buffer[0] == 'b' && input_index == 1)
+      {
+        breathing_mode = 1;
+        HAL_UART_Transmit(&huart1, (uint8_t*)"\r\nTryb oddychania wlaczony\r\n", 28, HAL_MAX_DELAY);
+      }
+      else
+      {
+        // Konwertuj na liczbę
+        int value = atoi((char*)input_buffer);
+        if (value >= 0 && value <= 100)
+        {
+          breathing_mode = 0; // Wyłącz tryb oddychania
+          brightness_percent = value;
+          SetBrightness(brightness_percent);
+        }
+        else
+        {
+          HAL_UART_Transmit(&huart1, (uint8_t*)"\r\nBledna wartosc! Wpisz liczbe 0-100\r\n", 38, HAL_MAX_DELAY);
+        }
+      }
+
+      input_index = 0; // Resetuj bufor
+    }
+    HAL_UART_Transmit(&huart1, (uint8_t*)"\r\n> ", 4, HAL_MAX_DELAY);
+  }
+  else if (data == 8 || data == 127) // Backspace
+  {
+    if (input_index > 0)
+    {
+      input_index--;
+      HAL_UART_Transmit(&huart1, (uint8_t*)" \b", 2, HAL_MAX_DELAY);
+    }
+  }
+  else if (data >= '0' && data <= '9' && input_index < sizeof(input_buffer) - 1)
+  {
+    input_buffer[input_index++] = data;
+  }
+  else if (data == 'b' && input_index < sizeof(input_buffer) - 1)
+  {
+    input_buffer[input_index++] = data;
+  }
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  uint8_t tx;
-
-  if (huart->Instance == USART1)
+  if (huart->Instance == USART2)
   {
-    if (rx1 >= '0' && rx1 <= '9')
-    {
-      tx = rx1 + 1;
-      if (tx > '9') tx = '0';
-    }
-    else
-    {
-      tx = '!';
-    }
-
-    HAL_UART_Transmit(&huart2, &tx, 1, HAL_MAX_DELAY);
-    HAL_UART_Receive_IT(&huart1, &rx1, 1);
+    ProcessInput(rx2);
+    HAL_UART_Receive_IT(&huart1, &rx2, 1);
   }
   else if (huart->Instance == USART2)
   {
-    if (rx2 >= '0' && rx2 <= '9')
+    // Zachowaj oryginalną funkcjonalność dla USART2
+    uint8_t tx;
+    if (rx1 >= '0' && rx1 <= '9')
     {
-      tx = rx2 ;
+      tx = rx1;
       if (tx > '9') tx = '0';
     }
     else
@@ -363,7 +476,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     }
 
     HAL_UART_Transmit(&huart1, &tx, 1, HAL_MAX_DELAY);
-    HAL_UART_Receive_IT(&huart2, &rx2, 1);
+    HAL_UART_Receive_IT(&huart2, &rx1, 1);
   }
 }
 /* USER CODE END 4 */
