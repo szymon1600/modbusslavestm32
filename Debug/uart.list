@@ -1867,7 +1867,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
  8000c9a:	b084      	sub	sp, #16
  8000c9c:	af00      	add	r7, sp, #0
  8000c9e:	6078      	str	r0, [r7, #4]
-  if (huart->Instance == USART2)
+  if (huart->Instance == USART1)
  8000ca0:	687b      	ldr	r3, [r7, #4]
  8000ca2:	681b      	ldr	r3, [r3, #0]
  8000ca4:	4a1f      	ldr	r2, [pc, #124]	@ (8000d24 <HAL_UART_RxCpltCallback+0x8c>)
@@ -1892,7 +1892,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   }
 }
  8000cc0:	e02c      	b.n	8000d1c <HAL_UART_RxCpltCallback+0x84>
-  else if (huart->Instance == USART1)
+  else if (huart->Instance == USART2)
  8000cc2:	687b      	ldr	r3, [r7, #4]
  8000cc4:	681b      	ldr	r3, [r3, #0]
  8000cc6:	4a1a      	ldr	r2, [pc, #104]	@ (8000d30 <HAL_UART_RxCpltCallback+0x98>)
@@ -1947,10 +1947,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
  8000d1e:	46bd      	mov	sp, r7
  8000d20:	b004      	add	sp, #16
  8000d22:	bd80      	pop	{r7, pc}
- 8000d24:	40004400 	.word	0x40004400
+ 8000d24:	40013800 	.word	0x40013800
  8000d28:	200001f1 	.word	0x200001f1
  8000d2c:	200000c8 	.word	0x200000c8
- 8000d30:	40013800 	.word	0x40013800
+ 8000d30:	40004400 	.word	0x40004400
  8000d34:	200001f0 	.word	0x200001f0
  8000d38:	2000015c 	.word	0x2000015c
 
