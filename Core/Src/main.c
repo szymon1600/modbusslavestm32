@@ -10,6 +10,7 @@
 #include "main.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -104,8 +105,7 @@ int main(void)
   HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
   // Wyślij instrukcje na start
-  char* welcome_msg = "Wpisz liczbe 0-100 i nacisnij Enter aby ustawic jasnosc LED\r\nWpisz 'b' aby wlaczyc tryb oddychania\r\n";
-  //HAL_UART_Transmit(&huart1, (uint8_t*)welcome_msg, strlen(welcome_msg), HAL_MAX_DELAY);
+  char* welcome_msg = "Wpisz liczbe 0-100 i nacisnij Enter aby ustawic jasnosc LED\r\nWpisz 'b' aby wlaczyc tryb oddychania\r\n> ";
   HAL_UART_Transmit(&huart2, (uint8_t*)welcome_msg, strlen(welcome_msg), HAL_MAX_DELAY);
   /* USER CODE END 2 */
 
@@ -113,7 +113,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  continue;
     if (breathing_mode)
     {
       // Efekt oddychania diody
@@ -170,7 +169,7 @@ void SystemClock_Config(void)
   HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1);
 
   /** Initializes the RCC Oscillators according to the specified parameters
-  * in the RCC_OscInitTypeDef structure.
+  * in the RCC_OscInitStruct structure.
   */
   RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
@@ -396,8 +395,8 @@ void SetBrightness(uint8_t percent)
 
   // Wyślij potwierdzenie
   char response[50];
-  sprintf(response, "Jasnosc ustawiona na: %d%%\r\n", percent);
-  HAL_UART_Transmit(&huart1, (uint8_t*)response, strlen(response), HAL_MAX_DELAY);
+  sprintf(response, "Jasnosc ustawiona na: %d%%\r\n> ", percent);
+  HAL_UART_Transmit(&huart2, (uint8_t*)response, strlen(response), HAL_MAX_DELAY);
 }
 
 void ProcessInput(uint8_t data)
@@ -415,7 +414,7 @@ void ProcessInput(uint8_t data)
       if (input_buffer[0] == 'b' && input_index == 1)
       {
         breathing_mode = 1;
-        HAL_UART_Transmit(&huart2, (uint8_t*)"\r\nTryb oddychania wlaczony\r\n", 28, HAL_MAX_DELAY);
+        HAL_UART_Transmit(&huart2, (uint8_t*)"\r\nTryb oddychania wlaczony\r\n> ", 30, HAL_MAX_DELAY);
       }
       else
       {
@@ -429,20 +428,23 @@ void ProcessInput(uint8_t data)
         }
         else
         {
-          HAL_UART_Transmit(&huart2, (uint8_t*)"\r\nBledna wartosc! Wpisz liczbe 0-100\r\n", 38, HAL_MAX_DELAY);
+          HAL_UART_Transmit(&huart2, (uint8_t*)"\r\nBledna wartosc! Wpisz liczbe 0-100\r\n> ", 42, HAL_MAX_DELAY);
         }
       }
 
       input_index = 0; // Resetuj bufor
     }
-    HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n> ", 4, HAL_MAX_DELAY);
+    else
+    {
+      HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n> ", 4, HAL_MAX_DELAY);
+    }
   }
   else if (data == 8 || data == 127) // Backspace
   {
     if (input_index > 0)
     {
       input_index--;
-      HAL_UART_Transmit(&huart2, (uint8_t*)" \b", 2, HAL_MAX_DELAY);
+      HAL_UART_Transmit(&huart2, (uint8_t*)"\b \b", 3, HAL_MAX_DELAY);
     }
   }
   else if (data >= '0' && data <= '9' && input_index < sizeof(input_buffer) - 1)
@@ -459,25 +461,13 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART1)
   {
-    ProcessInput(rx2);
-    HAL_UART_Receive_IT(&huart1, &rx2, 1);
+    ProcessInput(rx1);
+    HAL_UART_Receive_IT(&huart1, &rx1, 1);
   }
   else if (huart->Instance == USART2)
   {
-    // Zachowaj oryginalną funkcjonalność dla USART2
-    uint8_t tx;
-    if (rx1 >= '0' && rx1 <= '9')
-    {
-      tx = rx1;
-      if (tx > '9') tx = '0';
-    }
-    else
-    {
-      tx = '!';
-    }
-
-    HAL_UART_Transmit(&huart1, &tx, 1, HAL_MAX_DELAY);
-    HAL_UART_Receive_IT(&huart2, &rx1, 1);
+    ProcessInput(rx2);
+    HAL_UART_Receive_IT(&huart2, &rx2, 1);
   }
 }
 /* USER CODE END 4 */
