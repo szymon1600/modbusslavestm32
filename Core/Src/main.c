@@ -113,6 +113,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  continue;
     if (breathing_mode)
     {
       // Efekt oddychania diody
@@ -402,7 +403,7 @@ void SetBrightness(uint8_t percent)
 void ProcessInput(uint8_t data)
 {
   // Echo znaku
-  HAL_UART_Transmit(&huart1, &data, 1, HAL_MAX_DELAY);
+  HAL_UART_Transmit(&huart2, &data, 1, HAL_MAX_DELAY);
 
   if (data == '\r' || data == '\n') // Enter
   {
@@ -414,7 +415,7 @@ void ProcessInput(uint8_t data)
       if (input_buffer[0] == 'b' && input_index == 1)
       {
         breathing_mode = 1;
-        HAL_UART_Transmit(&huart1, (uint8_t*)"\r\nTryb oddychania wlaczony\r\n", 28, HAL_MAX_DELAY);
+        HAL_UART_Transmit(&huart2, (uint8_t*)"\r\nTryb oddychania wlaczony\r\n", 28, HAL_MAX_DELAY);
       }
       else
       {
@@ -428,20 +429,20 @@ void ProcessInput(uint8_t data)
         }
         else
         {
-          HAL_UART_Transmit(&huart1, (uint8_t*)"\r\nBledna wartosc! Wpisz liczbe 0-100\r\n", 38, HAL_MAX_DELAY);
+          HAL_UART_Transmit(&huart2, (uint8_t*)"\r\nBledna wartosc! Wpisz liczbe 0-100\r\n", 38, HAL_MAX_DELAY);
         }
       }
 
       input_index = 0; // Resetuj bufor
     }
-    HAL_UART_Transmit(&huart1, (uint8_t*)"\r\n> ", 4, HAL_MAX_DELAY);
+    HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n> ", 4, HAL_MAX_DELAY);
   }
   else if (data == 8 || data == 127) // Backspace
   {
     if (input_index > 0)
     {
       input_index--;
-      HAL_UART_Transmit(&huart1, (uint8_t*)" \b", 2, HAL_MAX_DELAY);
+      HAL_UART_Transmit(&huart2, (uint8_t*)" \b", 2, HAL_MAX_DELAY);
     }
   }
   else if (data >= '0' && data <= '9' && input_index < sizeof(input_buffer) - 1)
